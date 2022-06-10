@@ -69,7 +69,7 @@ A discrepancy is when the server doesn't store a post it said it would within th
 Anyone who can demonstrate a discrepancy can slash the bond and receieve a fisherman's reward.<br/>
 To demononstrate a discrepancy, you must provide:<br/>
     A post response<br/>
-    A search request with a state root from after `leeway + request_date`<br/>
+    An `exact_match` search request with a state root from after `leeway + request_date`<br/>
     Where `query` precisely matches the post response's content<br/>
 
 ### State Update
@@ -77,3 +77,23 @@ To demononstrate a discrepancy, you must provide:<br/>
 The server must continuously update the onchain state root every `update_period`.<br/>
 The bond is slashed if it fails to do this.<br/>
 In addition to a new hash, it must provide a ZKP showing that the data is in order, and that the new state is a superset of the old state.
+
+### State Structure
+
+The state is made of slots of fixed size containing a message.
+Each message has an ethereum address, a block_number at which it was stored, a `content_length` byte body, and a signature.
+The messages are stored in order.
+The state root is the merkle root of all the messages.
+
+### Search
+
+There are several types of search, each with a different use case and different cost to the server:
+    `exact_match`, `next`, `previous`, `content_substring`
+`exact_match` returns a 1 or a 0 depending whether the a message (including metadata) is in the sorted list.
+`next` gives the first message stored after a given point in the sorted list.
+`previous` gives the first message stored after a given point in the sorted list.
+`content_substring` gives the nth message whose body matches a given string.
+
+### Impersonation Fraud
+
+If there is any `exact_match` response where the message has an invalid signature, the server's bond is slashed.
