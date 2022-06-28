@@ -1,12 +1,16 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
 
-import "../lib/forge-std/Test.sol";
+import "../lib/forge-std/src/Test.sol";
+import "../src/Neu.sol";
 
 contract ContractTest is Test {
-    function setUp() public {}
+    Neu token;
+    function setUp() public {
+        token = new Neu();
+    }
 
-    function testExample() public {
-        assertTrue(true);
+    function testSupply() public {
+        assertEq(token.totalSupply(), 1000000000000);
     }
 }
