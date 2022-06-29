@@ -2,11 +2,9 @@
 pragma solidity ^0.8.0;
 
 import "./Neu.sol";
-import "../lib/openzeppelin-contracts/contracts/utils/cryptography/ECDSA.sol";
+import "../lib/forge-std/src/console.sol";
 
 contract TicketBooth {
-    using ECDSA for bytes32;
-
     address _server;
     Neu _token;
     uint256 _ticketPrice;
@@ -20,9 +18,9 @@ contract TicketBooth {
         _ticketPrice = ticketPrice;
     }
 
-    function buyTickets(uint256 amount) public {
-        _token.transfer(_server, amount * _ticketPrice);
-        totalTickets[msg.sender] = totalTickets[msg.sender] + amount; 
+    function buyTickets(address forUser, uint256 amount) public {
+        _token.transferFrom(forUser, _server, amount * _ticketPrice);
+        totalTickets[forUser] = totalTickets[forUser] + amount;
     }
 
     function useTickets(uint256 amount) public {
@@ -30,10 +28,10 @@ contract TicketBooth {
         usedTickets[msg.sender] = usedTickets[msg.sender] + amount;
     }
 
-    function redeemVoucher(uint256 tickets, bytes memory signature) public {
-        assert(keccak256(abi.encodePacked(tickets, msg.sender)).recover(signature) == _server); // Check that the server has signed a message giving the msg.sender some tickets
-        assert(tickets > totalTickets[msg.sender]);
-        totalTickets[msg.sender] = tickets;
+    function redeemVoucher(address forUser, uint256 tickets, uint8 v, bytes32 r, bytes32 s) public {
+        assert(ecrecover(keccak256(abi.encodePacked(tickets, forUser)), v, r, s) == _server); // Check that the server has signed a message giving the user some tickets
+        assert(tickets > totalTickets[forUser]);
+        totalTickets[forUser] = tickets;
     }
 
     // View functions

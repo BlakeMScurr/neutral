@@ -8,18 +8,40 @@ import "../src/Neu.sol";
 contract ContractTest is Test {
     TicketBooth booth;
     Neu token;
+    address server;
+    uint256 serverPrivateKey;
     function setUp() public {
         token = new Neu();
-        booth = new TicketBooth(msg.sender, token, 2);
+        server = vm.addr(1);
+        serverPrivateKey = 1;
+        booth = new TicketBooth(server, token, 2);
     }
 
-    function testBuyTickets() public {
+    function testBuyUse() public {
         assertEq(booth.getTotalTickets(address(1)), 0);
         token.transfer(address(1), 100);
+
+        // Buy Tickets
         vm.prank(address(1));
-        emit log_uint(123);
-        console.log("asdfasdf");
-        booth.buyTickets(1);
-        // assertEq(booth.getTotalTickets(address(1)), 5);
+        token.approve(address(booth), 100);
+        booth.buyTickets(address(1), 1);
+        assertEq(booth.getTotalTickets(address(1)), 1);
+
+        // Use Tickets
+        assertEq(booth.getUsedTickets(address(1)), 0);
+        vm.prank(address(1));
+        booth.useTickets(1);
+        assertEq(booth.getTotalTickets(address(1)), 1);
+        assertEq(booth.getUsedTickets(address(1)), 1);
+    }
+
+    function testVoucher() public {
+        assertEq(booth.getTotalTickets(address(1)), 0);
+
+        uint256 tickets = 1000;
+        bytes32 hash = keccak256(abi.encodePacked(tickets, address(1)));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(serverPrivateKey, hash);
+        booth.redeemVoucher(address(1), tickets, v, r, s);
+        assertEq(booth.getTotalTickets(address(1)), 1000);
     }
 }
