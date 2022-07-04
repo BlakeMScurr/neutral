@@ -24,8 +24,11 @@ contract Queue is TicketBooth {
         _leeway = leeway;
     }
 
-    function enqueue(bytes calldata request) public {
-        useTickets(_enqueueCost);
+    function enqueue(uint256 ticketsUsed, bytes calldata request, uint8 v, bytes32 r, bytes32 s) public {
+        assert(ecrecover(keccak256(abi.encodePacked(ticketsUsed, request)), v, r, s) == msg.sender); // Make sure the message sender signed the request
+        assert(_enqueueCost + getUsedTickets(msg.sender) <= ticketsUsed); // Make sure they have spent enough tickets to send this request
+
+        useTickets(ticketsUsed);
         requests[keccak256(request)] = block.number;
         emit Enqueue(msg.sender, request);
     }

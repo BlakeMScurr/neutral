@@ -11,34 +11,42 @@ contract ContractTest is Test {
     address server;
     uint256 serverPrivateKey;
 
+    address user;
+    uint256 userPrivateKey;
+
     function setUp() public {
         // Create contracts
         token = new Neu();
-        server = vm.addr(1);
         serverPrivateKey = 1;
+        server = vm.addr(serverPrivateKey);
+        userPrivateKey = 2;
+        user = vm.addr(userPrivateKey);
         queue = new Queue(server, token, 2, 1, 10);
 
         // Get Neu
-        assertEq(queue.getTotalTickets(address(1)), 0);
-        token.transfer(address(1), 100);
+        assertEq(queue.getTotalTickets(user), 0);
+        token.transfer(user, 100);
 
         // Buy Tickets
-        vm.prank(address(1));
+        vm.prank(user);
         token.approve(address(queue), 100);
-        queue.buyTickets(address(1), 1);
-        assertEq(queue.getTotalTickets(address(1)), 1);
+        queue.buyTickets(user, 1);
+        assertEq(queue.getTotalTickets(user), 1);
 
     }
 
     function testEnqueueDeque() public {
         // enqueue
-        vm.prank(address(1));
         bytes memory request = "Hallo, how are you?";
-        bytes32 requestHash = keccak256(request);
-        queue.enqueue(request);
+        uint256 ticketsUsed = 1;
+        bytes32 hash = keccak256(abi.encodePacked(ticketsUsed, request));
+        (uint8 uv, bytes32 ur, bytes32 us) = vm.sign(userPrivateKey, hash);
+        vm.prank(user);
+        queue.enqueue(ticketsUsed, request, uv, ur, us);
 
         // sign dequeue response
         bytes memory response = "Very well, thank you.";
+        bytes32 requestHash = keccak256(request);
         bytes32 responseHash = keccak256(abi.encodePacked(response, requestHash));
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(serverPrivateKey, responseHash);
         
@@ -48,13 +56,16 @@ contract ContractTest is Test {
 
     function testLateResponse() public {
         // enqueue
-        vm.prank(address(1));
         bytes memory request = "Hallo, how are you?";
-        bytes32 requestHash = keccak256(request);
-        queue.enqueue(request);
+        uint256 ticketsUsed = 1;
+        bytes32 hash = keccak256(abi.encodePacked(ticketsUsed, request));
+        (uint8 uv, bytes32 ur, bytes32 us) = vm.sign(userPrivateKey, hash);
+        vm.prank(user);
+        queue.enqueue(ticketsUsed, request, uv, ur, us);
 
-        // make sure immediately finding a late response fails fails
+        // make sure immediately finding a late response fails
         vm.expectRevert(stdError.assertionError);
+        bytes32 requestHash = keccak256(request);
         queue.lateResponse(requestHash);
 
         // roll forward without dequeue and expect success
