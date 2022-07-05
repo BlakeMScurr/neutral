@@ -48,11 +48,11 @@ contract Inbox is TicketBooth {
 
     // Lets the server resolve offchain requests by responding to the latest one, making
     // it impossible for the user to force it to respond to earlier ones.
-    function fastForward(
-        uint256 ticketsUsed, bytes calldata request, uint8 uv, bytes32 ur, bytes32 us, // request
-        bytes calldata response, uint8 sv, bytes32 sr, bytes32 ss // response
-    ) public {
-        
+    function fastForward(Request calldata rq, Response calldata resp) public {
+        (bytes32 rqHash, address user) = hashAndSigner(rq);
+        assert(signer(resp) == _server);
+        assert(rqHash == resp.requestHash);
+        useTicketsUpTo(rq.ticketsUsed, user);
     }
 
     // Utilities
