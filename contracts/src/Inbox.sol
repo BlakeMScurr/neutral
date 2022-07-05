@@ -26,9 +26,8 @@ contract Inbox is TicketBooth {
 
     // Forces the server to respond to the user's request
     function forceResponse(Request calldata rq) public {
-        (address user, bytes32 hash) = signer(rq);
-        assert(_forceResponseCost + getUsedTickets(user) <= rq.ticketsUsed); // Make sure they have spent enough tickets to send this request
-        useTickets(rq.ticketsUsed);
+        (bytes32 hash, address user) = hashAndSigner(rq);
+        assert(useTicketsUpTo(rq.ticketsUsed) >= _forceResponseCost);
         requests[hash] = block.number;
         emit ForceResponse(user, hash, rq.body);
     }
@@ -41,7 +40,7 @@ contract Inbox is TicketBooth {
     }
 
     // Slashes the server's bond if it's late to respond to a user's request
-    function punishLateness(bytes32 requestHash) public {
+    function punishLateness(bytes32 requestHash) public view {
         assert(requests[requestHash] != 0); // Unset requestHashes can't have late response
         assert(requests[requestHash] + _leeway < block.number);
         // TODO: slash bond
@@ -62,9 +61,9 @@ contract Inbox is TicketBooth {
         return ecrecover(hash, resp.v, resp.r, resp.s);
     }
 
-    function signer(Request calldata rq) public pure returns(address, bytes32) {
+    function hashAndSigner(Request calldata rq) public pure returns(bytes32, address) {
         bytes32 hash = keccak256(abi.encodePacked(rq.ticketsUsed, rq.body, rq.signer));
-        return (ecrecover(hash, rq.v, rq.r, rq.s), hash);
+        return (hash, ecrecover(hash, rq.v, rq.r, rq.s));
     }
 }
 

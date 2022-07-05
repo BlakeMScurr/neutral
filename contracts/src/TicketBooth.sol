@@ -6,11 +6,11 @@ import "../lib/forge-std/src/console.sol";
 
 contract TicketBooth {
     address _server;
-    Neu _token;
-    uint256 _ticketPrice;
+    Neu private _token;
+    uint256 private _ticketPrice;
 
-    mapping(address => uint256) totalTickets;
-    mapping(address => uint256) usedTickets;
+    mapping(address => uint256) private totalTickets;
+    mapping(address => uint256) private usedTickets;
 
     constructor(address server, Neu token, uint256 ticketPrice) {
         _server = server;
@@ -23,9 +23,10 @@ contract TicketBooth {
         totalTickets[forUser] = totalTickets[forUser] + amount;
     }
 
-    function useTickets(uint256 amount) public {
-        assert(usedTickets[msg.sender] + amount <= totalTickets[msg.sender]);
-        usedTickets[msg.sender] = usedTickets[msg.sender] + amount;
+    function useTicketsUpTo(uint256 ticketNumber) public returns (uint256 torn) {
+        if (ticketNumber < totalTickets[msg.sender] || ticketNumber < usedTickets[msg.sender]) return 0;
+        torn = ticketNumber - usedTickets[msg.sender];
+        usedTickets[msg.sender] = ticketNumber;
     }
 
     function redeemVoucher(address forUser, uint256 tickets, uint8 v, bytes32 r, bytes32 s) public {
@@ -35,11 +36,11 @@ contract TicketBooth {
     }
 
     // View functions
-    function getTotalTickets(address user) public view returns (uint256) {
+    function getTotalTickets(address user) external view returns (uint256) {
         return totalTickets[user];
     }
 
-    function getUsedTickets(address user) public view returns (uint256) {
+    function getUsedTickets(address user) external view returns (uint256) {
         return usedTickets[user];
     }
 }

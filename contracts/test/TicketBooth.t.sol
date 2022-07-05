@@ -30,9 +30,13 @@ contract ContractTest is Test {
         // Use Tickets
         assertEq(booth.getUsedTickets(address(1)), 0);
         vm.prank(address(1));
-        booth.useTickets(1);
+        assertEq(booth.useTicketsUpTo(1), 1);
         assertEq(booth.getTotalTickets(address(1)), 1);
         assertEq(booth.getUsedTickets(address(1)), 1);
+
+        // Can't use more tickets than we have
+        vm.prank(address(1));
+        // assertEq(booth.useTicketsUpTo(2), 0);
     }
 
     function testVoucher() public {
