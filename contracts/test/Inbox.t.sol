@@ -32,53 +32,52 @@ contract ContractTest is Test {
         token.approve(address(inbox), 100);
         inbox.buyTickets(user, 1);
         assertEq(inbox.getTotalTickets(user), 1);
-
     }
 
     function testForce() public {
         // forceResponse
-        bytes memory request = "Hallo, how are you?";
-        uint256 ticketsUsed = 1;
-        bytes32 hash = keccak256(abi.encodePacked(ticketsUsed, request));
-        (uint8 uv, bytes32 ur, bytes32 us) = vm.sign(userPrivateKey, hash);
+        (Request memory rq, bytes32 rqHash) = makeRequest(1, bytes("Hallo, how are you?"), user, userPrivateKey);
         vm.prank(user);
-        inbox.forceResponse(ticketsUsed, request, uv, ur, us);
+        inbox.forceResponse(rq);
 
         // sign response
         bytes memory response = "Very well, thank you.";
-        bytes32 requestHash = keccak256(request);
-        bytes32 responseHash = keccak256(abi.encodePacked(response, requestHash));
+        bytes32 responseHash = keccak256(abi.encodePacked(response, rqHash));
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(serverPrivateKey, responseHash);
-        
+
         // respond
-        inbox.respond(response, requestHash, v, r, s);
+        inbox.respond(Response(response, rqHash, v, r, s));
     }
 
-    function testLateResponse() public {
+    function testPunishLateness() public {
         // forceResponse
-        bytes memory request = "Hallo, how are you?";
-        uint256 ticketsUsed = 1;
-        bytes32 hash = keccak256(abi.encodePacked(ticketsUsed, request));
-        (uint8 uv, bytes32 ur, bytes32 us) = vm.sign(userPrivateKey, hash);
+        (Request memory rq, bytes32 rqHash) = makeRequest(1, bytes("Hallo, how are you?"), user, userPrivateKey);
         vm.prank(user);
-        inbox.forceResponse(ticketsUsed, request, uv, ur, us);
+        inbox.forceResponse(rq);
 
         // make sure immediately finding a late response fails
         vm.expectRevert(stdError.assertionError);
-        bytes32 requestHash = keccak256(request);
-        inbox.lateResponse(requestHash);
+        inbox.punishLateness(rqHash);
 
         // roll forward without respond and expect success
         vm.roll(100);
-        inbox.lateResponse(requestHash);
+        inbox.punishLateness(rqHash);
     }
 
     function testCannotBeLateForNonexistentRequest() public {
         vm.expectRevert(stdError.assertionError);
-        inbox.lateResponse(bytes32("asdf"));
+        inbox.punishLateness(bytes32("asdf"));
 
         vm.roll(100);
         vm.expectRevert(stdError.assertionError);
-        inbox.lateResponse(bytes32("asdf"));
+        inbox.punishLateness(bytes32("asdf"));
+    }
+
+    function testFastForward() public {}
+
+    function makeRequest(uint256 ticketsUsed, bytes memory body, address publicAddress, uint256 privateKey) public returns (Request memory, bytes32) {
+        bytes32 hash = keccak256(abi.encodePacked(ticketsUsed, body, publicAddress));
+        (uint8 uv, bytes32 ur, bytes32 us) = vm.sign(privateKey, hash);
+        return (Request(ticketsUsed, body, publicAddress, uv, ur, us), hash);
     }
 }
