@@ -27,7 +27,7 @@ contract Inbox is TicketBooth {
     // Forces the server to respond to the user's request
     function forceResponse(Request calldata rq) public {
         (bytes32 hash, address user) = hashAndSigner(rq);
-        assert(useTicketsUpTo(rq.ticketsUsed) >= _forceResponseCost);
+        assert(useTicketsUpTo(rq.ticketsUsed, user) >= _forceResponseCost);
         requests[hash] = block.number;
         emit ForceResponse(user, hash, rq.body);
     }

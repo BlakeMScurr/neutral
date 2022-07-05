@@ -6,7 +6,7 @@ import "../src/TicketBooth.sol";
 import "../src/Neu.sol";
 
 contract ContractTest is Test {
-    TicketBooth booth;
+    PassThrough booth;
     Neu token;
     address server;
     uint256 serverPrivateKey;
@@ -14,7 +14,7 @@ contract ContractTest is Test {
         token = new Neu();
         server = vm.addr(1);
         serverPrivateKey = 1;
-        booth = new TicketBooth(server, token, 2);
+        booth = new PassThrough(server, token, 2);
     }
 
     function testBuyUse() public {
@@ -29,14 +29,12 @@ contract ContractTest is Test {
 
         // Use Tickets
         assertEq(booth.getUsedTickets(address(1)), 0);
-        vm.prank(address(1));
-        assertEq(booth.useTicketsUpTo(1), 1);
+        assertEq(booth._useTicketsUpTo(1, address(1)), 1);
         assertEq(booth.getTotalTickets(address(1)), 1);
         assertEq(booth.getUsedTickets(address(1)), 1);
 
         // Can't use more tickets than we have
-        vm.prank(address(1));
-        // assertEq(booth.useTicketsUpTo(2), 0);
+        assertEq(booth._useTicketsUpTo(2, address(1)), 0);
     }
 
     function testVoucher() public {
@@ -47,5 +45,13 @@ contract ContractTest is Test {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(serverPrivateKey, hash);
         booth.redeemVoucher(address(1), tickets, v, r, s);
         assertEq(booth.getTotalTickets(address(1)), 1000);
+    }
+}
+
+contract PassThrough is TicketBooth {
+    constructor(address server, Neu token, uint256 ticketPrice) TicketBooth(server, token, ticketPrice) {}
+
+    function _useTicketsUpTo(uint256 ticketNumber, address user) public returns (uint256) {
+        return useTicketsUpTo(ticketNumber, user);
     }
 }

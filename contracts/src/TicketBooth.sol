@@ -23,10 +23,11 @@ contract TicketBooth {
         totalTickets[forUser] = totalTickets[forUser] + amount;
     }
 
-    function useTicketsUpTo(uint256 ticketNumber) public returns (uint256 torn) {
-        if (ticketNumber < totalTickets[msg.sender] || ticketNumber < usedTickets[msg.sender]) return 0;
-        torn = ticketNumber - usedTickets[msg.sender];
-        usedTickets[msg.sender] = ticketNumber;
+    function useTicketsUpTo(uint256 ticketNumber, address user) internal returns (uint256) {
+        if (ticketNumber > totalTickets[user] || ticketNumber < usedTickets[user]) return 0;
+        uint256 torn = ticketNumber - usedTickets[user];
+        usedTickets[user] = ticketNumber;
+        return torn;
     }
 
     function redeemVoucher(address forUser, uint256 tickets, uint8 v, bytes32 r, bytes32 s) public {
