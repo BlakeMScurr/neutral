@@ -30,29 +30,19 @@ contract ContractTest is Test {
         // Buy Tickets
         vm.prank(user);
         token.approve(address(inbox), 100);
-        inbox.buyTickets(user, 1);
-        assertEq(inbox.getTotalTickets(user), 1);
+        inbox.buyTickets(user, 50);
+        assertEq(inbox.getTotalTickets(user), 50);
     }
 
     function testForce() public {
-        // forceResponse
         (Request memory rq, bytes32 rqHash) = makeRequest(1, bytes("Hallo, how are you?"), user, userPrivateKey);
-        vm.prank(user);
         inbox.forceResponse(rq);
-
-        // sign response
-        bytes memory response = "Very well, thank you.";
-        bytes32 responseHash = keccak256(abi.encodePacked(response, rqHash));
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(serverPrivateKey, responseHash);
-
-        // respond
-        inbox.respond(Response(response, rqHash, v, r, s));
+        inbox.respond(makeResponse("Very well, thank you.", rqHash, serverPrivateKey));
     }
 
     function testPunishLateness() public {
         // forceResponse
         (Request memory rq, bytes32 rqHash) = makeRequest(1, bytes("Hallo, how are you?"), user, userPrivateKey);
-        vm.prank(user);
         inbox.forceResponse(rq);
 
         // make sure immediately finding a late response fails
@@ -73,7 +63,24 @@ contract ContractTest is Test {
         inbox.punishLateness(bytes32("asdf"));
     }
 
-    function testFastForward() public {}
+    function testFastForward() public {
+        // should be able to use a signed request to use many tickets
+        assertEq(inbox.getUsedTickets(user), 0);
+        (Request memory rq, bytes32 rqHash) = makeRequest(50, bytes("later request"), user, userPrivateKey);
+        inbox.fastForward(rq, makeResponse("later response.", rqHash, serverPrivateKey));
+        assertEq(inbox.getUsedTickets(user), 50);
+
+        // should not be able to roll those tickets back using an earlier signed response
+        (rq, rqHash) = makeRequest(10, bytes("earlier request"), user, userPrivateKey);
+        inbox.fastForward(rq, makeResponse("earlier response.", rqHash, serverPrivateKey));
+        assertEq(inbox.getUsedTickets(user), 50);
+    }
+
+    function makeResponse(bytes memory body, bytes32 rqHash, uint256 serverPK) public returns (Response memory) {
+        bytes32 responseHash = keccak256(abi.encodePacked(body, rqHash));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(serverPK, responseHash);
+        return Response(body, rqHash, v, r, s);
+    }
 
     function makeRequest(uint256 ticketsUsed, bytes memory body, address publicAddress, uint256 privateKey) public returns (Request memory, bytes32) {
         bytes32 hash = keccak256(abi.encodePacked(ticketsUsed, body, publicAddress));
