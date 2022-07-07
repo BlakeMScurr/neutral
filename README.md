@@ -21,7 +21,7 @@ NeutralChat guarantees (to a degree) that anyone can make a post, and that every
 Anyone can buy tickets to access the server at a fixed price.<br/>
 Any ticket holder can force the server to respond to its requests, slashing them if they don't.<br/>
 To address a `search` request, the server must respond with the relevant posts, and a proof that they are correct.<br/>
-To address a `post` request, the server must store the data within the `leeway` period<br/>
+To address a `post` request, the server must store the data within the `storage_leeway` period<br/>
 The server is forced to post a state root on chain at least every `interval` blocks.<br/>
 
 ### Tickets
@@ -56,21 +56,21 @@ The queue itself does not check the validity of the request or response bodies.<
 For search requests, there is a separate contract that identifies fraudulent search responses.<br/>
 Anyone who can demonstrate that the server committed search fraud can slash the bond and recieve a fisherman's reward.<br/>
 To prove a search fraud the fisherman must:<br/>
- - Show a valid search request where the state root is an actual onchain state root from before the `request_date`<br/>
+ - Show a valid search request where the state root is an actual onchain state root<br/>
  - Show that is a signed response from the server.<br/>
  - Show that the response body is invalid.<br/>
-     - A valid response (body) is a valid ZKP proving that the `query` on the `state` gives a given `result`<br/>
+     - A valid response (body) is a valid ZKP proving that the `query` on the `state` gives `result`<br/>
 
-### Discrepancy Check
+### Storage Fraud
 
 A post response is just a signed request, therefore the queue implicitly validates the response at dequeue.<br/>
-A post response means that the server will store the request within `leeway` blocks of `request_date`.<br/>
-A discrepancy is when the server doesn't store a post it said it would within the time period.<br/>
-Anyone who can demonstrate a discrepancy can slash the bond and receieve a fisherman's reward.<br/>
-To demononstrate a discrepancy, you must provide:<br/>
+A post response means that the server will store the request within `storage_leeway` blocks of `request_date`.<br/>
+Storage fraud is when the server doesn't store a post it said it would within the time period.<br/>
+Anyone who can demonstrate storage fraud can slash the bond and receieve a fisherman's reward.<br/>
+To demononstrate storage fraud, you must provide:<br/>
  - A post response<br/>
- - An `exact_match` search request with a state root from after `leeway + request_date`<br/>
- - Where `query` precisely matches the post response's content<br/>
+ - An `exact_match` search request with a state root from after `storage_leeway + request_date`<br/>
+ - Where the search `query` exactly matches the post response's content<br/>
 
 ### State Update
 
