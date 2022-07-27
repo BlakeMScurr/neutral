@@ -97,3 +97,9 @@ There are several types of search, each with a different use case and different 
 ### Impersonation Fraud
 
 If there is any `exact_match` response where the message has an invalid signature, the server's bond is slashed.
+
+# Future
+
+There is a path to decentralising neutral servers which involves erasure coding, recursive SNARKs, and restaking.
+The resulting system will have stronger security guarantees, better robustness and uptime, and the capacity to stand up to
+state level actors, like established L1s and their Dapps.
