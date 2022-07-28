@@ -7,7 +7,8 @@ import "../lib/forge-std/src/console.sol";
 
 contract Inbox is TicketBooth {
     uint256 _forceResponseCost;
-    uint256 _leeway;
+    uint256 _responseWindow;
+    uint256 _requestWindow;
     mapping(bytes32 => uint256) public requests;
 
     event ForceResponse(address indexed _from, bytes32 indexed hash, bytes request);
@@ -18,14 +19,25 @@ contract Inbox is TicketBooth {
         Neu token,
         uint256 ticketPrice,
         uint256 forceResponseCost,
-        uint256 leeway
+        uint256 responseWindow,
+        uint256 requestWindow
     ) TicketBooth(server, token, ticketPrice) {
         _forceResponseCost = forceResponseCost;
-        _leeway = leeway;
+        _responseWindow = responseWindow;
+        _requestWindow = requestWindow;
     }
 
     // Forces the server to respond to the user's request
     function forceResponse(Request calldata rq) public {
+        // Only requests from a given window after the current block are acceptable.
+        // The server can't respond to a search request dated in the future, since it doesn't know the state
+        // of the store at that time. It can't respond to a store request from the past since the state is
+        // already set at that point.
+        // To allow the requests to work offchain, the blockNumber must be a signed part of the request, but a
+        // client can't be certain that their forceRequest transaction will be accepted at the exact block specified
+        // in the request, so we give them some leeway, namely _requestWindow blocks, in which their transaction is acceptable.
+        assert(block.number <= rq.blockNumber && rq.blockNumber <= block.number + _requestWindow);
+
         (bytes32 hash, address user) = hashAndSigner(rq);
         assert(useTicketsUpTo(rq.ticketsUsed, user) >= _forceResponseCost);
         requests[hash] = block.number;
@@ -42,7 +54,7 @@ contract Inbox is TicketBooth {
     // Slashes the server's bond if it's late to respond to a user's request
     function punishLateness(bytes32 requestHash) public view {
         assert(requests[requestHash] != 0); // Unset requestHashes can't have late response
-        assert(requests[requestHash] + _leeway < block.number);
+        assert(requests[requestHash] + _responseWindow < block.number);
         // TODO: slash bond
     }
 
@@ -69,9 +81,10 @@ contract Inbox is TicketBooth {
 
 struct Request {
     // Content
-    uint256 ticketsUsed;
     bytes body;
     address signer;
+    uint256 blockNumber; 
+    uint256 ticketsUsed;
 
     // Signature
     uint8 v;
