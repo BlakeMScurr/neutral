@@ -22,7 +22,7 @@ NeutralChat guarantees that anyone can cheaply make a post, and that every post 
 
 Anyone force servers in the cluster to respond to its requests, slashing them if they don't respond promptly.<br/>
 All servers must respond to `search` requests. To do so, the server must respond with the relevant posts and a proof that they are correct.<br/>
-A leader is randomly selected every `interval` blocks who must handle `post` requests.<br/>
+A leader is selected every `interval` blocks who must handle `post` requests.<br/>
 To address a `post` request, the leader must store the data and distribute it to the appropriate server.<br/>
 The leader is forced to post a state root on chain at least every `interval` blocks.<br/>
 
@@ -92,9 +92,19 @@ The state root is the merkle root of all the bundles.
 
 ### Joining the Cluster
 
-### Leader Choice
+Anyone can join the cluster by restaking their Eth.
+The next leader is just the next server in the list.
+The leader must be known ahead of time, so servers can only leave the list if they're `exit_period` `interval`s from leadership.
+Similarly, servers can't be the leader soon after they join.
+The leader passes on leadership as they update the state root.
+There is a leaving penalty, both to avoid jockeying, and to penalise making data less available. The penalty is proportional to the rarity and amount of the data.
 
 ### Distribution
+
+There is a record of who holds which bundles.
+The leader always has to hold the bundle they build.
+Any server can declare that they hold any bundle.
+Anyone can forcibly open a channel to download any bundle, the channel costing a small fixed fee.
 
 ### Search
 
