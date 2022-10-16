@@ -1,52 +1,56 @@
 # Neutral
 
-Neutral is a suite of tools for building credibly neutral servers.
+Neutral is a suite of tools for building traditional web applications on a credibly neutral highly scalable distributed backend.
 
 Existing servers are centralised and can arbitrarily withhold service, give false responses, or drop your data.<br/>
 Blockchains, on the other hand are credibly neutral but they suffer from scalability problems, especially for data (as opposed to computation).<br/>
-Neutral servers are a middleground with almost as much scalability as traditional servers, and some of the credible neutrality of blockchains.<br/>
+Neutral clusters are a middleground with almost as much scalability as traditional servers, and almost as much credible neutrality of blockchains.<br/>
 
-Neutral servers are still centralised, but they use ZKPs and channels on Ethereum to provide service guarantees.
+Neutral clusters can be joined by anyone willing to put money at stake on Ethereum and run a server. 
+Recursive ZKPs guarantee correct responses across the cluster.
+State channels guarantee liveliness and permit arbitrary best case data scaling.
 
 # NeutralChat
 
-NeutralChat is social media for Ethereum on top of a neutral server.<br/>
-NeutralChat is the first demonstration of a neutral server.<br/>
-NeutralChat guarantees (to a degree) that anyone can make a post, and that every post can be found by anyone.<br/>
+NeutralChat is social media for Ethereum on top of a neutral cluster.<br/>
+NeutralChat is the first demonstration of a neutral cluster.<br/>
+NeutralChat guarantees that anyone can cheaply make a post, and that every post can be found by anyone.<br/>
 
 ## Technical Details
 
 ### Guarantees
 
-Anyone can buy tickets to access the server at a fixed price.<br/>
-Any ticket holder can force the server to respond to its requests, slashing them if they don't.<br/>
-To address a `search` request, the server must respond with the relevant posts, and a proof that they are correct.<br/>
-To address a `post` request, the server must store the data within the `storage_leeway` period<br/>
-The server is forced to post a state root on chain at least every `interval` blocks.<br/>
-
-### Tickets
-
-Tickets are used to make requests.<br/>
-Each request costs a fixed and uneditable number of tickets.<br/>
-Tickets can be bought onchain at a fixed price of Neu, where Neu is a token largely owned by NeutralChat's operators.<br/>
-You can prove the number of tickets you have by looking at the ticketbooth contract.<br/>
-If you attempt to reuse a ticket, the server can demonstrate that and blacklist you.<br/>
+Anyone force servers in the cluster to respond to its requests, slashing them if they don't respond promptly.<br/>
+All servers must respond to `search` requests. To do so, the server must respond with the relevant posts and a proof that they are correct.<br/>
+A leader is randomly selected every `interval` blocks who must handle `post` requests.<br/>
+To address a `post` request, the leader must store the data and distribute it to the appropriate server.<br/>
+The leader is forced to post a state root on chain at least every `interval` blocks.<br/>
 
 ### Queue
 
-To force the server to repspond, make a request and put it in the queue by spending a ticket.<br/>
-The server must respond onchain within the `response_window`, or their entire bond will be slashed.<br/>
-It costs the server to respond onchain, so they're incentivised to respond offchain.<br/>
-Enqueue and dequeue should cost around the same gas to minimize griefing attacks by the client, or censorship by the server.<br/>
+To force a server to repspond, open a payment channel with them, make a request and put it in the queue by spending from the channel.<br/>
+A server must respond onchain within the `response_window`, or their entire bond will be slashed.<br/>
+It costs a server to respond onchain, so they're incentivised to respond offchain.<br/>
+Enqueue and dequeue should cost around the same gas to minimize griefing attacks by the client, or censorship by a server.<br/>
 In order to enqueue, the request must be dated after the current time.<br/>
 In order to dequeue, the response must include a signature of the response body and the request body.<br/>
 
+### Recursive Composition
+
+A search request specifies a time range to which it applies.
+The bundles of messages are distributed across various servers, so they have to be requested to form a search respone.
+The range determines which bundles need to be searched, and therefore which servers should have sub requests made to them.
+The responder makes sub requests to all the relevant servers, where the request range specifies one bundle.
+The range determines the response leeway, as recursive proofs need at least 2 times longer than non recursive proofs, in order to recieve the sub responses.
+If a sub response fails and the sub server is slashed, the responder shouldn't necessarily be slashed. So there should be an extra leeway period to allow the responder to ask all other servers holding that bundle.
+A recursive proof can specify unavailable bundles, and if the responder can prove that all servers holding that bundle are slashed, then the responder can't be slashed for excluding that bundle.
+Ideally we can recover any bundle, so the "slashed bundle" defence is removed if a new server comes online with the bundle. But there is a grace period where the defence holds, so there is no race condition where the responder didn't know that a new server had the bundle.
+Smaller ranges are cheaper.
+
 ### Bond
 
-The server holds most of its Neu in a bond which can be slashed for misbahaviour.<br/>
-The bond vests over time at a fixed percentage each month, meaning there is always money left in the bond, but the limit of the amount vested approaches the whole bond.<br/>
-The bond can be added to at any time.<br/>
-The bond can be slashed by a smart contract or by a fraud proof.<br/>
+Servers are Ethereum nodes using a restaking network.
+Their stake can be slashed by a fraud proof (search fraud, storage fraud, lateness, impersonation, or state update failure).<br/>
 If the bond is slashed by a fraud proof, we call the fraud proof provider a fisherman, and they recieve a reward.<br/>
 The fisherman's reward must be small (say, 2% of the slash) to prevent the server operators from slashing themselves to circumvent vesting.<br/>
 
@@ -80,10 +84,17 @@ In addition to a new hash, it must provide a ZKP showing that the data is in ord
 
 ### State Structure
 
-The state is made of slots of fixed size containing a message.
+The each bundle is made of slots of fixed size containing a message.
 Each message has an ethereum address, a block_number at which it was stored, a `content_length` byte body, and a signature.
 The messages are stored in order.
-The state root is the merkle root of all the messages.
+The bundle root is the merkle root of all the messages.
+The state root is the merkle root of all the bundles.
+
+### Joining the Cluster
+
+### Leader Choice
+
+### Distribution
 
 ### Search
 
@@ -98,8 +109,6 @@ There are several types of search, each with a different use case and different 
 
 If there is any `exact_match` response where the message has an invalid signature, the server's bond is slashed.
 
-# Future
+### Monetisation
 
-There is a path to decentralising neutral servers which involves erasure coding, recursive SNARKs, and restaking.
-The resulting system will have stronger security guarantees, better robustness and uptime, and the capacity to stand up to
-state level actors, like established L1s and their Dapps.
+Opening a state channel (as a client) incurs a protocol fee, which will be off in "startup mode" and "hyperstructure" mode, and on in an intermediary "extraction" period.
