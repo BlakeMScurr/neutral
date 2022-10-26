@@ -73,7 +73,7 @@ Storage fraud is when the server doesn't store a post it said it would within th
 Anyone who can demonstrate storage fraud can slash the bond and receieve a fisherman's reward.<br/>
 To demononstrate storage fraud, you must provide:<br/>
  - A post response<br/>
- - An `exact_match` search request with a state root from after `storage_leeway + request_date`<br/>
+ - An `in_bundle` search request with a state root from after `storage_leeway + request_date`<br/>
  - Where the search `query` exactly matches the post response's content<br/>
 
 ### State Update
@@ -108,17 +108,62 @@ Anyone can forcibly open a channel to download any bundle, the channel costing a
 
 ### Search
 
-There are several types of search, each with a different use case and different cost to the server:
-    `exact_match`, `next`, `previous`, `content_substring`
-`exact_match` returns a 1 or a 0 depending whether the a message (including metadata) is in the sorted list.
-`next` gives the first message stored after a given point in the sorted list.
-`previous` gives the first message stored after a given point in the sorted list.
-`content_substring` gives the nth message whose body matches a given string.
+Interally we require `in_bundle` to prove that a bundle has a message that it should and verify its signature.
+Externally we require various kinds of search to meet UI needs, namely `content_substring` and `by_user`.
+Both are implemented similarly under the hood.
+    Find the full set of matching messages over a block range using many ZKPs across the cluster.
+    Convert an index across the whole set into an index over a subset of matches.
+    Get a separate proof for the value at the index in the subset.
+    Recursively combine subsets, showing that the subset and whole set indices are equivalent.
+    Combine the index equivalence with the the proof of the value for a single proof.
+This enables a low cost forced path since 1 proof is posted and verified on chain.
+It also enables permits non-recursion in the unforced path - the client can just verify each proof independently.
 
 ### Impersonation Fraud
 
-If there is any `exact_match` response where the message has an invalid signature, the server's bond is slashed.
+If there is any `in_bundle` response where the message has an invalid signature, the server's bond is slashed.
+Note that there are two types of `in_bundle` request, one that takes a hash to save onchain data costs, and another that takes the whole message so that the signature validity can be checked on chain.
 
 ### Monetisation
 
 Opening a state channel (as a client) incurs a protocol fee, which will be off in "startup mode" and "hyperstructure" mode, and on in an intermediary "extraction" period.
+
+# Design Principles
+
+Minimise forcing costs.
+Minimise marginal forcing costs.
+Fishing can be expensive.
+Forcing cost is dominated by onchain costs.
+Trade onchain data availability for computation.
+
+## Minimise Forcing Costs
+
+To meaningfully defeat censorship, a user should practically be able to use the service even while every server is willing to spend money to censor them.
+Concretely this means designing the system to minimise the cost of forcing it to respond to your requests.
+We aim to give freedom of speech to a hated minority of 1.
+Note, we still assume that the L1 remains accessible.
+Note, erasure coding based systems tend to require substantial coordination to recover data.
+
+## Minimise Marginal Forcing Costs
+
+Even if amortised forcing costs are minimised, they may be high enough that a server can ignore a request and call the user's bluff.
+So we may want to incur a small penalty in overall costs to split it into multiple parts, so that a user can demonstrate their seriousness.
+<!-- TODO: actually study the game theory. I.e., perhaps the server can more easily ignore small threats, even if they're more likely to be followed through on. -->
+
+## Fishing can be Expensive
+
+The exception to minimising onchain costs is fishing.
+When the server gives an invalid result they may lose their stake, some of which goes to the user as a "fisherman's reward."
+We can offload expensive onchain computations to the fishing step, since the reward should easily cover the gas costs.
+
+## Forcing Cost is Dominated by Onchain Costs
+
+Onchain costs are inherently expensive as they impose a computational across a very large set of nodes.
+Each step along the forced path only imposes a cost on a single server, even though that may be high.
+This is just a rule of thumb - the two can be traded off once the concrete costs are known.
+
+## Trade Onchain Data Availability for Computation
+
+Rollup technology appears to have better asymtotics than sharding.
+Even if linear data scaling is possible in principle, its security properties at L1 appear more tenuous than existing plans for computation scaling.
+Therefore we should assume that onchain computation will get cheaper at a faster rate than onchain data, and we should plan around that.
